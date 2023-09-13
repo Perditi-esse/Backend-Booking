@@ -1,0 +1,13 @@
+https://github.com/schniti269
+
+ACR_NAME=ContainersFallstudie
+GIT_USER=schniti269
+GIT_PAT=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
+
+az acr task create \
+    --registry $ACR_NAME \
+    --name taskhelloworld \
+    --image helloworld:{{.Run.ID}} \
+    --context https://github.com/$GIT_USER//Fallstudie.git #main
+    --git-access-token $GIT_PAT
+    --file Dockerfile \

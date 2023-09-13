@@ -1,0 +1,137 @@
+openapi: 3.0.0
+info:
+  title: Backend API Documentation
+  version: 1.0.0
+
+paths:
+  /booking:
+    post:
+      summary: Create a new booking
+      operationId: createBooking
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingRequest'
+      responses:
+        '201':
+          description: Booking created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingResponse'
+        '400':
+          description: Bad request
+        '500':
+          description: Internal server error
+
+  /bookings/{bookingId}:
+    get:
+      summary: Get booking details by ID
+      operationId: getBooking
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          description: ID of the booking
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Booking details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingResponse'
+        '404':
+          description: Booking not found
+        '500':
+          description: Internal server error
+
+    delete:
+      summary: Cancel a booking by ID
+      operationId: cancelBooking
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          description: ID of the booking to cancel
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Booking canceled successfully
+        '404':
+          description: Booking not found
+        '500':
+          description: Internal server error
+
+  /bookings/{bookingId}/pay:
+    post:
+      summary: Initiate payment for a booking
+      operationId: initiatePayment
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          description: ID of the booking to pay for
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Payment initiated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponse'
+        '404':
+          description: Booking not found
+        '500':
+          description: Internal server error
+
+components:
+  schemas:
+    BookingRequest:
+      type: object
+      properties:
+        showId:
+          type: integer
+        time:
+          type: string #utc format
+        seats:
+          type: array
+          items:
+            type: object
+            properties:
+              row:
+                type: integer
+              number:
+                type: integer
+            required:
+              - row
+              - number
+        
+
+    BookingResponse:
+      type: object
+      properties:
+        bookingId:
+          type: integer
+        show:
+          $ref: '#/components/schemas/Show'
+        seats:
+          type: array
+          items:
+            type: integer
+        amount:
+          type: number  # Total amount to be paid
+        qrCodeImage:
+          type: string  # URL or base64 encoded data of the QR code image
+
+
+    PaymentResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          description: Payment status
