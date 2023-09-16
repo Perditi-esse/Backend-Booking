@@ -1,15 +1,20 @@
-# For more information, please refer to https://aka.ms/vscode-docker-python
-FROM alpine:latest
+# Use the official Python image as a base image
+FROM python:3.8
 
-RUN apk add --no-cache python3-dev \
-    && pip3 install --upgrade pip
-
+# Set the working directory inside the container
 WORKDIR /app
-COPY . /app
-RUN pip3 --no-cache-dir install -r requirements.txt
+
+# Copy the requirements file into the container
+COPY requirements.txt .
+
+# Install the Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy your Python application into the container
+COPY . .
+
+# Expose port 5000 for Flask app
 EXPOSE 5000
 
-ENTRYPOINT [ "python3" ]
-CMD [ "app.py"]
-
-
+# Define the command to run your Flask app
+CMD ["python", "app.py"]
