@@ -260,4 +260,4 @@ with open("Config/whitelisted_ips.txt", "r") as file:
 
 if __name__ == '__main__':
     Base.metadata.create_all(engine)
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000)
