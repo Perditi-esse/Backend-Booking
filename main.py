@@ -248,9 +248,6 @@ def validate_ticket(bookingId):
 def helloworld():
     return("Helloworld form backend booking")
 
-with open("Config/whitelisted_ips.txt", "r") as file:
-    whitelisted_ips = [line.strip() for line in file.readlines()]
-#end of Security
 
 if __name__ == '__main__':
     Base.metadata.create_all(engine)
