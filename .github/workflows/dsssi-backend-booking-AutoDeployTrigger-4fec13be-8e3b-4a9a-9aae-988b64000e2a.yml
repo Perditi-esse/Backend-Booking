@@ -1,4 +1,4 @@
-name: Trigger auto deployment for dsssi-booking
+name: Trigger auto deployment for dsssi-backend-booking
 
 # When this action will be executed
 on:
@@ -8,7 +8,7 @@ on:
       [ main ]
     paths:
     - '//**'
-    - '.github/workflows/dsssi-booking-AutoDeployTrigger-b6464a9b-1909-44dd-b05d-23753c9cd012.yml'
+    - '.github/workflows/dsssi-backend-booking-AutoDeployTrigger-4fec13be-8e3b-4a9a-9aae-988b64000e2a.yml'
 
   # Allow manual trigger 
   workflow_dispatch:      
@@ -26,20 +26,20 @@ jobs:
       - name: Azure Login
         uses: azure/login@v1
         with:
-          client-id: ${{ secrets.DSSSIBOOKING_AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.DSSSIBOOKING_AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.DSSSIBOOKING_AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.DSSSIBACKENDBOOKING_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.DSSSIBACKENDBOOKING_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.DSSSIBACKENDBOOKING_AZURE_SUBSCRIPTION_ID }}
 
       - name: Build and push container image to registry
         uses: azure/container-apps-deploy-action@v1
         with:
           appSourcePath: ${{ github.workspace }} 
           registryUrl: kinosystemcontainerreg.azurecr.io
-          registryUsername: ${{ secrets.DSSSIBOOKING_REGISTRY_USERNAME }}
-          registryPassword: ${{ secrets.DSSSIBOOKING_REGISTRY_PASSWORD }}
-          containerAppName: dsssi-booking
+          registryUsername: ${{ secrets.DSSSIBACKENDBOOKING_REGISTRY_USERNAME }}
+          registryPassword: ${{ secrets.DSSSIBACKENDBOOKING_REGISTRY_PASSWORD }}
+          containerAppName: dsssi-backend-booking
           resourceGroup: kinosystem
-          imageToBuild: kinosystemcontainerreg.azurecr.io/dsssi-booking:${{ github.sha }}
+          imageToBuild: kinosystemcontainerreg.azurecr.io/dsssi-backend-booking:${{ github.sha }}
           dockerfilePath: Dockerfile
 
 
