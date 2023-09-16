@@ -1,12 +1,15 @@
 # For more information, please refer to https://aka.ms/vscode-docker-python
-FROM python:3.10-slim
+FROM alpine:latest
 
-WORKDIR /code
-COPY . /code
-RUN python -m pip install -r requirements.txt
+RUN apk add --no-cache python3-dev \
+    && pip3 install --upgrade pip
 
+WORKDIR /app
+COPY . /app
+RUN pip3 --no-cache-dir install -r requirements.txt
+EXPOSE 5000
 
-
-CMD [ "uvicorn", "main:app", "--host", "0.0.0.0","--port","80" ]
+ENTRYPOINT [ "python3" ]
+CMD [ "app.py"]
 
 
