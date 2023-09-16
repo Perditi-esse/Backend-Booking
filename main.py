@@ -244,15 +244,9 @@ def validate_ticket(bookingId):
         session.rollback()
         return jsonify({"error": "Internal server error"}), 500
 
-
-
-###Security
-@app.before_request
-def restrict_access():
-    client_ip = request.remote_addr
-    if client_ip not in whitelisted_ips:
-        return jsonify({"error": "Access denied"}), 403
-
+@app.route('/helloworld')
+def helloworld():
+    return("Helloworld form backend booking")
 
 with open("Config/whitelisted_ips.txt", "r") as file:
     whitelisted_ips = [line.strip() for line in file.readlines()]
