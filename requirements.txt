@@ -3,3 +3,4 @@ fpdf==1.7.2
 pydantic==1.8.2
 qrcode==7.4.2
 SQLAlchemy==2.0.20
+uvicorn==0.23.2
