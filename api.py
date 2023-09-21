@@ -12,6 +12,19 @@ def get_db():
     finally:
         db.close()
 
+# Function to construct a dictionary response from a Booking instance
+def booking_to_dict(booking):
+    return {
+        "id": booking.id,
+        "show_id": booking.show_id,
+        "customer_id": booking.customer_id,
+        "seats": booking.seats,
+        "amount": booking.amount,
+        "is_paid": booking.is_paid,
+        "is_used": booking.is_used,
+        "datetime": booking.datetime,
+    }
+
 # Create a new booking
 @app.post("/bookings/", response_model=BookingResponse)
 def create_booking(booking_data: BookingCreate, db: Session = Depends(get_db)):
@@ -19,7 +32,7 @@ def create_booking(booking_data: BookingCreate, db: Session = Depends(get_db)):
     db.add(db_booking)
     db.commit()
     db.refresh(db_booking)
-    return db_booking
+    return booking_to_dict(db_booking)
 
 # Cancel a booking and process a refund if paid
 @app.delete("/bookings/{booking_id}/", response_model=BookingResponse)
@@ -35,7 +48,7 @@ def cancel_booking(booking_id: int, db: Session = Depends(get_db)):
     
     db.delete(db_booking)
     db.commit()
-    return db_booking
+    return booking_to_dict(db_booking)
 
 # Pay for a booking
 @app.put("/bookings/{booking_id}/pay/", response_model=BookingResponse)
@@ -50,7 +63,7 @@ def pay_booking(booking_id: int, db: Session = Depends(get_db)):
     validateURL="https://dsssi-backend-booking.greenplant-9a54dc56.germanywestcentral.azurecontainerapps.io/bookings/"+str(booking_id)+"/validate/"
     QRc=generate_qr_code(validateURL)
     PDFFile=generate_ticket_pdf(db_booking.seats, db_booking.amount, QRc, db_booking.datetime)
-    return UploadFile(PDFFile)
+    return booking_to_dict(db_booking)
 
 # Validate a booking/ticket as used
 @app.put("/bookings/{booking_id}/validate/", response_model=BookingResponse)
@@ -61,11 +74,16 @@ def validate_booking(booking_id: int, db: Session = Depends(get_db)):
     
     if db_booking.is_used:
         raise HTTPException(status_code=400, detail="Booking already validated")
-    
+    if not db_booking.is_paid:
+        raise HTTPException(status_code=400, detail="Booking not paid")
     db_booking.is_used = True
     db.commit()
     db.refresh(db_booking)
-    return db_booking
+    return booking_to_dict(db_booking)
+
+@app.get("/hello")
+def hello():
+    return "Hello World"
 
 if __name__ == "__main__":
     import uvicorn
