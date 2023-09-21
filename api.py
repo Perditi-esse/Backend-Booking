@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends, File, UploadFile
 from sqlalchemy.orm import Session
 from database import Booking, SessionLocal, BookingCreate, BookingUpdate, BookingResponse
-from helper import Helper
+from helper import generate_qr_code, generate_ticket_pdf
 app = FastAPI()
 
 # Dependency to get the database session
@@ -48,9 +48,9 @@ def pay_booking(booking_id: int, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_booking)
     validateURL="https://dsssi-backend-booking.greenplant-9a54dc56.germanywestcentral.azurecontainerapps.io/bookings/"+str(booking_id)+"/validate/"
-    QRc=Helper.generate_qr_code(validateURL)
-    PDFFile=Helper.generate_ticket_pdf(db_booking.seats, db_booking.amount, QRc, db_booking.datetime)
-    return UploadFile(PDFFile, attachment_filename='ticket.pdf')
+    QRc=generate_qr_code(validateURL)
+    PDFFile=generate_ticket_pdf(db_booking.seats, db_booking.amount, QRc, db_booking.datetime)
+    return UploadFile(PDFFile)
 
 # Validate a booking/ticket as used
 @app.put("/bookings/{booking_id}/validate/", response_model=BookingResponse)
@@ -69,4 +69,4 @@ def validate_booking(booking_id: int, db: Session = Depends(get_db)):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=5000)
