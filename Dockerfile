@@ -17,5 +17,6 @@ COPY . .
 EXPOSE 8000
 
 # Define the command to run your Flask app
+CMD ["python", "databse.py"]
 CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "5000", "--reload"]
 
