@@ -1,5 +1,6 @@
-from fastapi import FastAPI, HTTPException, Depends, File, UploadFile
+from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy.orm import Session
+from fastapi.responses import FileResponse
 from database import Booking, SessionLocal, BookingCreate, BookingUpdate, BookingResponse
 from helper import generate_qr_code, generate_ticket_pdf
 app = FastAPI()
@@ -32,6 +33,7 @@ def create_booking(booking_data: BookingCreate, db: Session = Depends(get_db)):
     db.add(db_booking)
     db.commit()
     db.refresh(db_booking)
+
     return booking_to_dict(db_booking)
 
 # Cancel a booking and process a refund if paid
@@ -60,10 +62,14 @@ def pay_booking(booking_id: int, db: Session = Depends(get_db)):
     db_booking.is_paid = True
     db.commit()
     db.refresh(db_booking)
+
     validateURL="https://dsssi-backend-booking.greenplant-9a54dc56.germanywestcentral.azurecontainerapps.io/bookings/"+str(booking_id)+"/validate/"
     QRc=generate_qr_code(validateURL)
-    PDFFile=generate_ticket_pdf(db_booking.seats, db_booking.amount, QRc, db_booking.datetime)
-    return booking_to_dict(db_booking)
+    pdf_file_path=generate_ticket_pdf(db_booking.seats, db_booking.amount, QRc, db_booking.datetime)
+
+    # Send the PDF file as a response with appropriate headers
+    response = FileResponse(pdf_file_path, headers={"Content-Disposition": "attachment; filename=booking_ticket.pdf"})
+    return response
 
 # Validate a booking/ticket as used
 @app.put("/bookings/{booking_id}/validate/", response_model=BookingResponse)
