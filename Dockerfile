@@ -13,10 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy your Python application into the container
 COPY . .
 
-# Expose port 5000 for Flask app
 EXPOSE 8000
 
-# Define the command to run your Flask app
-CMD ["python", "databse.py"]
-CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "5000", "--reload"]
-
+# Define the command to run your app
+CMD ["python", "api.py"]
