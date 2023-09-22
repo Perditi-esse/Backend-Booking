@@ -63,9 +63,9 @@ def test_full_lifecycle(test_db):
     assert created_booking['amount'] == booking_data.amount
     assert not created_booking['is_paid']
     assert not created_booking['is_used']
-    updated_booking=pay_booking(created_booking['id'], db=test_db)
+    pay_booking(created_booking['id'], db=test_db)
     assert test_db.query(Booking).filter(Booking.id == created_booking['id']).first().is_paid
-    updated_booking = validate_booking(created_booking['id'], db=test_db)
+    validate_booking(created_booking['id'], db=test_db)
     assert test_db.query(Booking).filter(Booking.id == created_booking['id']).first().is_used
     cancel_booking(created_booking['id'], db=test_db)
     assert cancel_booking(created_booking['id'], db=test_db) is None
