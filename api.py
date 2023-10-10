@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from fastapi.responses import FileResponse
 from database import Booking, SessionLocal, BookingCreate, BookingUpdate, BookingResponse
 from helper import generate_qr_code, generate_ticket_pdf
+
 app = FastAPI()
 
 # Dependency to get the database session
@@ -40,6 +41,7 @@ def create_booking(booking_data: BookingCreate, db: Session = Depends(get_db)):
 @app.delete("/bookings/{booking_id}/", response_model=BookingResponse)
 def cancel_booking(booking_id: int, db: Session = Depends(get_db)):
     db_booking = db.query(Booking).filter(Booking.id == booking_id).first()
+    
     if db_booking is None:
         raise HTTPException(status_code=404, detail="Booking not found")
     
@@ -56,6 +58,7 @@ def cancel_booking(booking_id: int, db: Session = Depends(get_db)):
 @app.put("/bookings/{booking_id}/pay/", response_model=BookingResponse)
 def pay_booking(booking_id: int, db: Session = Depends(get_db)):
     db_booking = db.query(Booking).filter(Booking.id == booking_id).first()
+    
     if db_booking is None:
         raise HTTPException(status_code=404, detail="Booking not found")
     
@@ -75,6 +78,7 @@ def pay_booking(booking_id: int, db: Session = Depends(get_db)):
 @app.put("/bookings/{booking_id}/validate/", response_model=BookingResponse)
 def validate_booking(booking_id: int, db: Session = Depends(get_db)):
     db_booking = db.query(Booking).filter(Booking.id == booking_id).first()
+    
     if db_booking is None:
         raise HTTPException(status_code=404, detail="Booking not found")
     
@@ -82,14 +86,11 @@ def validate_booking(booking_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Booking already validated")
     if not db_booking.is_paid:
         raise HTTPException(status_code=400, detail="Booking not paid")
+    
     db_booking.is_used = True
     db.commit()
     db.refresh(db_booking)
     return booking_to_dict(db_booking)
-
-@app.get("/hello")
-def hello():
-    return "Hello World"
 
 if __name__ == "__main__":
     import uvicorn

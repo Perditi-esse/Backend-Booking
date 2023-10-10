@@ -1,0 +1,49 @@
+@startuml scan ticket
+
+!define AzurePuml /home/ian/Documents/Azure-PlantUML-2.2/dist
+!include AzurePuml/AzureCommon.puml
+!include AzurePuml/Containers/AzureContainerRegistry.puml
+!include AzurePuml/Containers/AzureContainerInstance.puml
+!include AzurePuml/Containers/AzureServiceEnvironment.puml
+!include AzurePuml/Databases/AzureSqlDatabase.puml
+!include AzurePuml/Databases/AzureCosmosDb.puml
+!include AzurePuml/DevOps/AzureRepos.puml
+!include AzurePuml/DevOps/AzurePipelines.puml
+!include AzurePuml/Networking/AzureVirtualNetwork.puml
+!include AzurePuml/Storage/AzureStorageClassic.puml
+!include AzurePuml/Networking/AzureServiceEndpoint.puml
+!include AzurePuml/Containers/AzureContainerApp.puml
+!include AzurePuml/DevOps/AzureTestPlans.puml
+!include AzurePuml/Management/AzureUserPrivacy.puml
+
+
+    package "Databases" {
+        AzureSqlDatabase(sqlDatabase, "Users","AzureHosted")
+        AzureSqlDatabase(MovieselDatabase, "Movies","AzureHosted")
+        AzureSqlDatabase(NoSqlDatabase, "Bookings and Tickets","in Container Memory")
+    }
+
+    Package "Frontend" {
+        AzureContainerApp(FrontendWeb, "Frotnend Web","1-2 Instances")
+        AzureContainerApp(FrontendMitarbeiter, "Frontend Mitarbeiter","1 Instance")
+    }
+
+    Package "Backend" {
+        AzureContainerApp(BackendBooking, "Backend Booking","1-2 Instances")
+        AzureContainerApp(BackendLook, "Backend Movie selection","1-2 Instances")
+        AzureContainerApp(BackendUser, "Backend User","1-2 Instances")
+    }
+
+AzureUserPrivacy(User, "User", "User")
+AzureUserPrivacy(Mitarbeiter, "Mitarbeiter", "Mitarbeiter")
+
+
+
+Mitarbeiter -- FrontendWeb: scanQRCode()
+FrontendWeb -- BackendBooking: validateTicket()
+BackendBooking -- NoSqlDatabase: invalidateTicketInDatabase()
+
+@enduml
+
+
+

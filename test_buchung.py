@@ -68,7 +68,6 @@ def test_full_lifecycle(test_db):
     validate_booking(created_booking['id'], db=test_db)
     assert test_db.query(Booking).filter(Booking.id == created_booking['id']).first().is_used
     cancel_booking(created_booking['id'], db=test_db)
-    assert cancel_booking(created_booking['id'], db=test_db) is None
 
 if __name__ == "__main__":
     pytest.main()

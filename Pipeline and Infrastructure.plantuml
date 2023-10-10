@@ -1,0 +1,96 @@
+@startuml Docker Container Deployment with Azure Services
+
+!define AzurePuml /home/ian/Documents/Azure-PlantUML-2.2/dist
+!include AzurePuml/AzureCommon.puml
+!include AzurePuml/Containers/AzureContainerRegistry.puml
+!include AzurePuml/Containers/AzureContainerInstance.puml
+!include AzurePuml/Containers/AzureServiceEnvironment.puml
+!include AzurePuml/Databases/AzureSqlDatabase.puml
+!include AzurePuml/Databases/AzureCosmosDb.puml
+!include AzurePuml/DevOps/AzureRepos.puml
+!include AzurePuml/DevOps/AzurePipelines.puml
+!include AzurePuml/Networking/AzureVirtualNetwork.puml
+!include AzurePuml/Storage/AzureStorageClassic.puml
+!include AzurePuml/Networking/AzureServiceEndpoint.puml
+!include AzurePuml/Containers/AzureContainerApp.puml
+!include AzurePuml/DevOps/AzureTestPlans.puml
+
+package "Azure" {
+   
+AzureContainerRegistry(registry, "Containers","Docker Image Storage")
+AzureServiceEnvironment(ServiceEnv, "Kinosystem","managed service Environment")
+AzureStorageClassic(storage, "Storage","10Gb")
+
+package "Databases" {
+AzureSqlDatabase(sqlDatabase, "Users","AzureHosted")
+AzureSqlDatabase(MovieselDatabase, "Movies","AzureHosted")
+AzureSqlDatabase(NoSqlDatabase, "Bookings and Tickets","in Container Memory")
+}
+
+Package "Frontend" {
+    AzureContainerApp(FrontendWeb, "Frotnend Web","1-2 Instances")
+ 
+
+
+    AzureContainerApp(FrontendMitarbeiter, "Frontend Mitarbeiter","1 Instance")
+
+}
+
+Package "Backend" {
+
+AzureContainerApp(BackendBooking, "Backend Booking","1-2 Instances")
+
+AzureContainerApp(BackendLook, "Backend Movie selection","1-2 Instances")
+
+AzureContainerApp(BackendUser, "Backend User","1-2 Instances")
+
+}
+}
+
+
+
+
+
+package "Repositories" {
+AzureRepos(BackendBookingRepo, "Backend Booking","main")
+AzureRepos(BackendLookRepo, "Backend Movie selection","main")
+AzureRepos(BackendUserRepo, "Backend User","main")
+AzureRepos(FrontendWebRepo, "Frontend Web","main")
+AzureRepos(FrontendMitarbeiterRepo, "Frontend Mitarbeiter","main")
+
+package Tests{
+AzureTestPlans(testplanBackendBooking, "Test Booking","Pytest")
+AzureTestPlans(testplanBackendLook, "Test Movie selection","JavaUnitTest")
+AzureTestPlans(testplanBackendUser, "Test User","JavaUnitTest")
+}
+}
+
+AzurePipelines(pipeline, "CI Pipelines","")
+
+BackendBookingRepo --> testplanBackendBooking
+BackendLookRepo --> testplanBackendLook
+BackendUserRepo --> testplanBackendUser
+
+testplanBackendBooking --> pipeline
+testplanBackendLook --> pipeline
+testplanBackendUser --> pipeline
+FrontendWebRepo --> pipeline
+FrontendMitarbeiterRepo --> pipeline
+
+pipeline --> registry
+registry--> ServiceEnv
+registry --> storage
+
+ServiceEnv --> FrontendWeb
+ServiceEnv --> FrontendMitarbeiter
+ServiceEnv --> BackendBooking
+ServiceEnv --> BackendLook
+ServiceEnv --> BackendUser
+
+
+
+
+
+
+
+@enduml
