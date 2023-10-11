@@ -102,6 +102,10 @@ def validate_booking(booking_id: int, db: Session = Depends(get_db)):
     db.refresh(db_booking)
     return booking_to_dict(db_booking)
 
+@app.get("/hello")
+def hello():
+    return "Hello World!"
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
