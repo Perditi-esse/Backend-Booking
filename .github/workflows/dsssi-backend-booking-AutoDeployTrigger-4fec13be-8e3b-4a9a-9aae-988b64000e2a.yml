@@ -9,9 +9,7 @@ on:
     paths:
     - '//**'
     - '.github/workflows/dsssi-backend-booking-AutoDeployTrigger-4fec13be-8e3b-4a9a-9aae-988b64000e2a.yml'
-
-  # Allow manual trigger 
-  workflow_dispatch:      
+   
 
 jobs:
   build-and-deploy:
