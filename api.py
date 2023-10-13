@@ -38,9 +38,22 @@ def booking_to_dict(booking):
     }
 
 # Create a new booking
-@app.post("/bookings/", response_model=BookingResponse)
-def create_booking(booking_data: BookingCreate, db: Session = Depends(get_db)):
-    db_booking = Booking(**booking_data.dict(), is_paid=False, is_used=False)
+@app.post("/bookings/")
+def create_booking(
+        show_id: int, 
+        customer_id: int, 
+        seats: str, 
+        amount: int, 
+        db: Session = Depends(get_db)
+    ):
+    db_booking = Booking(
+        show_id=show_id,
+        customer_id=customer_id,
+        seats=seats,
+        amount=amount,
+        is_paid=False,
+        is_used=False
+    )
     db.add(db_booking)
     db.commit()
     db.refresh(db_booking)
