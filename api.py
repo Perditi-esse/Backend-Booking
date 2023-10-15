@@ -116,7 +116,7 @@ def validate_booking(booking_id: int, db: Session = Depends(get_db)):
     return booking_to_dict(db_booking)
 
 #inform all users with a booking for a specific show that the show is cancelled and notifys them that they will get a refund
-@app.put("/bookings/{show_id}/cancel/", response_model=BookingResponse)
+@app.put("/shows/{show_id}/cancel/", response_model=BookingResponse)
 def cancel_show(show_id: int, db: Session = Depends(get_db)):
     db_booking = db.query(Booking).filter(Booking.show_id == show_id).all()
     
