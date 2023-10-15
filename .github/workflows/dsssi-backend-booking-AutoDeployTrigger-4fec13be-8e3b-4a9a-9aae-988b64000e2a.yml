@@ -4,8 +4,6 @@ name: Trigger auto deployment for dsssi-backend-booking
 on:
   # Automatically trigger it when detected changes in repo
   push:
-    branches: 
-      [ main ]
     paths:
     - '//**'
     - '.github/workflows/dsssi-backend-booking-AutoDeployTrigger-4fec13be-8e3b-4a9a-9aae-988b64000e2a.yml'
