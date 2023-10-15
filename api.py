@@ -115,6 +115,41 @@ def validate_booking(booking_id: int, db: Session = Depends(get_db)):
     db.refresh(db_booking)
     return booking_to_dict(db_booking)
 
+#inform all users with a booking for a specific show that the show is cancelled and notifys them that they will get a refund
+@app.put("/bookings/{show_id}/cancel/", response_model=BookingResponse)
+def cancel_show(show_id: int, db: Session = Depends(get_db)):
+    db_booking = db.query(Booking).filter(Booking.show_id == show_id).all()
+    
+    if db_booking is None:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    
+    customer_ids = []
+    for booking in db_booking:
+        if booking.is_paid:
+            customer_ids.append([booking.customer_id,booking.amount])
+            # Process refund logic here (you can implement this as needed)
+            # Assuming refund processed successfully, update the booking status
+            booking.is_paid = False
+        customer_ids.append([booking.customer_id,0])
+    
+    #logic to send to usercontainer
+    #requests.post('https://dsssi-backend-user.greenplant-9a54dc56.germanywestcentral.azurecontainer.io/users/notify/', json=customer_ids)
+
+    db.commit()
+    return len(customer_ids) +"users affected and notified"
+
+
+
+# Get a booking by ID
+@app.get("/bookings/{booking_id}/", response_model=BookingResponse)
+def get_booking(booking_id: int, db: Session = Depends(get_db)):
+    db_booking = db.query(Booking).filter(Booking.id == booking_id).first()
+    
+    if db_booking is None:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    
+    return booking_to_dict(db_booking)
+
 @app.get("/hello")
 def hello():
     return "Hello World!"
