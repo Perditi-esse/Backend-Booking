@@ -150,6 +150,22 @@ def get_booking(booking_id: int, db: Session = Depends(get_db)):
     
     return booking_to_dict(db_booking)
 
+# Get all bookings
+@app.get("/bookings/all", response_model=list[BookingResponse])
+def get_all_bookings(db: Session = Depends(get_db)):
+    db_bookings = db.query(Booking).all()
+    return [booking_to_dict(db_booking) for db_booking in db_bookings]
+
+#get bookings by user id
+@app.get("/bookings/user/{user_id}/", response_model=list[BookingResponse])
+def get_booking_by_user(user_id: int, db: Session = Depends(get_db)):
+    db_bookings = db.query(Booking).filter(Booking.customer_id == user_id).all()
+    
+    if db_bookings is None:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    
+    return [booking_to_dict(db_booking) for db_booking in db_bookings]
+
 @app.get("/hello")
 def hello():
     return "Hello World!"

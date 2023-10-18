@@ -56,6 +56,12 @@ def test_full_lifecycle(test_db):
         seats="A1,A2",
         amount=100,
     )
+    booking_data2 = BookingCreate(
+        show_id=1,
+        customer_id=1,
+        seats="A3,A4",
+        amount=100,
+    )
     created_booking = create_booking(booking_data, db=test_db)
     assert created_booking['show_id'] == booking_data.show_id
     assert created_booking['customer_id'] == booking_data.customer_id
