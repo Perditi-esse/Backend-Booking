@@ -166,6 +166,17 @@ def get_booking_by_user(user_id: int, db: Session = Depends(get_db)):
     
     return [booking_to_dict(db_booking) for db_booking in db_bookings]
 
+# Get all bookings for a show
+@app.get("/bookings/show/{show_id}/", response_model=list[BookingResponse])
+def get_bookings_for_show(show_id: int, db: Session = Depends(get_db)):
+    db_bookings = db.query(Booking).filter(Booking.show_id == show_id).all()
+    
+    if db_bookings is None:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    
+    return [booking_to_dict(db_booking) for db_booking in db_bookings]
+
+
 @app.get("/hello")
 def hello():
     return "Hello World!"
