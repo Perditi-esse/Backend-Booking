@@ -6,14 +6,24 @@ from pydantic import BaseModel
 from sqlalchemy.sql import func
 from datetime import datetime, timedelta
 
-DATABASE_URL = "sqlite:///BookingService.db"  # You can change this to your preferred database URL
+import pyodbc  # Import pyodbc instead of pymssql
+
+# Define your credentials and connection details
+username = 'dev'
+password = 'Amongus69'
+server = 'boooking-transaction-db.database.windows.net'
+database = 'booking_transactionDB'
+driver = 'ODBC Driver 17 for SQL Server'
+
+# Create the connection string
+DATABASE_URL = f'mssql+pymssql://{username}:{password}@{server}:1433/{database}'
 
 # SQLAlchemy setup
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# SQLAlchemy Models
+# SQLAlchemy Modelss
 class Booking(Base):
     __tablename__ = "bookings"
 
