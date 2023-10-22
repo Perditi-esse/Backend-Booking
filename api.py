@@ -7,14 +7,27 @@ from helper import generate_qr_code, generate_ticket_pdf
 
 app = FastAPI()
 
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+import requests
+
+
+#transaction id generator
+#list for transaction ids
+outward_transaction_ids = []
+inward_transaction_ids = []
+
+def get_idempotency_key(string):
+    response = requests.post('https://backend-idempotency-provider.your-service.com/generate-key/', json={'description': string})
+    data = response.json()
+    idempotency_key = data['key']
+    outward_transaction_ids.append(idempotency_key)
+    return idempotency_key
+
+def check_idempotency_key(idempotency_key):
+    if idempotency_key in inward_transaction_ids:
+        return True #the request has already been processed
+    else:
+        return False #the request has not been processed yet
+
 
 # Dependency to get the database session
 def get_db():
@@ -116,8 +129,18 @@ def validate_booking(booking_id: int, db: Session = Depends(get_db)):
     return booking_to_dict(db_booking)
 
 #inform all users with a booking for a specific show that the show is cancelled and notifys them that they will get a refund
-@app.put("/shows/{show_id}/cancel/", response_model=BookingResponse)
-def cancel_show(show_id: int, db: Session = Depends(get_db)):
+@app.put("/shows/{show_id}/cancel/{transaction_id}", response_model=BookingResponse)
+def cancel_show(show_id: int,transaction_id: str, db: Session = Depends(get_db)):
+    
+    if check_idempotency_key(transaction_id):
+        raise HTTPException(status_code=400, detail="Transaction already recieved")
+    #add it only after checking if it is already in the list
+    inward_transaction_ids.append(transaction_id)
+    
+    #generate a new idempotency key for outbound transaction
+    idempotency_key = get_idempotency_key("booking contacting the user container because of show "+str(show_id))
+    outward_transaction_ids.append(idempotency_key)
+
     db_booking = db.query(Booking).filter(Booking.show_id == show_id).all()
     
     if db_booking is None:
@@ -133,7 +156,7 @@ def cancel_show(show_id: int, db: Session = Depends(get_db)):
         customer_ids.append([booking.customer_id,0])
     
     #logic to send to usercontainer
-    #requests.post('https://dsssi-backend-user.greenplant-9a54dc56.germanywestcentral.azurecontainer.io/users/notify/', json=customer_ids)
+    #requests.post('https://dsssi-backend-user.greenplant-9a54dc56.germanywestcentral.azurecontainer.io/users/notify/', json={"customer_ids":customer_ids, "show_id": show_id, "idempotency_key": idempotency_key})
 
     db.commit()
     return len(customer_ids) +"users affected and notified"
@@ -175,6 +198,8 @@ def get_bookings_for_show(show_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Booking not found")
     
     return [booking_to_dict(db_booking) for db_booking in db_bookings]
+
+
 
 
 @app.get("/hello")
