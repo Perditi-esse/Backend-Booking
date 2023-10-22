@@ -3,6 +3,7 @@ name: Trigger auto deployment for dsssi-backend-booking
 # When this action will be executed
 on:
   # Automatically trigger it when detected changes in repo
+  workflow_dispatch:
   push:
     paths:
     - '//**'

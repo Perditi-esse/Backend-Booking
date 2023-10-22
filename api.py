@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from fastapi.responses import FileResponse
 from database import Booking, SessionLocal, BookingCreate, BookingUpdate, BookingResponse
 from helper import generate_qr_code, generate_ticket_pdf
+from typing import List
 
 app = FastAPI()
 
@@ -174,13 +175,13 @@ def get_booking(booking_id: int, db: Session = Depends(get_db)):
     return booking_to_dict(db_booking)
 
 # Get all bookings
-@app.get("/bookings/all", response_model=list[BookingResponse])
+@app.get("/bookings/all", response_model=List[BookingResponse])
 def get_all_bookings(db: Session = Depends(get_db)):
     db_bookings = db.query(Booking).all()
     return [booking_to_dict(db_booking) for db_booking in db_bookings]
 
 #get bookings by user id
-@app.get("/bookings/user/{user_id}/", response_model=list[BookingResponse])
+@app.get("/bookings/user/{user_id}/", response_model=List[BookingResponse])
 def get_booking_by_user(user_id: int, db: Session = Depends(get_db)):
     db_bookings = db.query(Booking).filter(Booking.customer_id == user_id).all()
     
@@ -190,7 +191,7 @@ def get_booking_by_user(user_id: int, db: Session = Depends(get_db)):
     return [booking_to_dict(db_booking) for db_booking in db_bookings]
 
 # Get all bookings for a show
-@app.get("/bookings/show/{show_id}/", response_model=list[BookingResponse])
+@app.get("/bookings/show/{show_id}/", response_model=List[BookingResponse])
 def get_bookings_for_show(show_id: int, db: Session = Depends(get_db)):
     db_bookings = db.query(Booking).filter(Booking.show_id == show_id).all()
     
