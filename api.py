@@ -57,27 +57,16 @@ def booking_to_dict(booking):
     }
 
 # Create a new booking
-@app.post("/bookings/{transaction_id}/", response_model=BookingResponse)
-def create_booking(
-        show_id: int, 
-        customer_id: int, 
-        seats: str, 
-        amount: int, 
-        transaction_id: str,
-        db: Session = Depends(get_db)
-    ):
-    db_booking = Booking(
-        show_id=show_id,
-        customer_id=customer_id,
-        seats=seats,
-        amount=amount,
-        is_paid=False,
-        is_used=False
-    )
+@app.post("/bookings/{transaction_id}", response_model=BookingResponse)
+def create_booking(booking_data: BookingCreate,transaction_id: str, db: Session = Depends(get_db)):
     if check_idempotency_key(transaction_id):
         raise HTTPException(status_code=400, detail="Transaction already recieved")
     #add it only after checking if it is already in the list
     inward_transaction_ids.append(transaction_id)
+
+    show_id=booking_data.show_id
+    customer_id=booking_data.customer_id
+    seats=str(booking_data.seats)
 
     if db.query(Booking).filter(Booking.show_id == show_id).filter(Booking.customer_id == customer_id).first() is not None:
         raise HTTPException(status_code=400, detail="Booking already exists")

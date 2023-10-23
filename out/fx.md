@@ -3,7 +3,7 @@
 ### 1. Create a New Booking
 
 #### Request
-- **Endpoint:** `POST /bookings/{transaction_id}/`
+- **Endpoint:** `POST /bookings/{transaction_id}`
 - **JSON Payload:**
 ```json
 {
