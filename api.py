@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from fastapi.responses import FileResponse
 from database import Booking, SessionLocal, BookingCreate, BookingUpdate, BookingResponse
-from helper import generate_qr_code, generate_ticket_pdf
+from helper import generate_qr_code, generate_ticket_pdf, SeatStringToVector, SeatVectorToString,seatmatrix,SeperateSeats
 from typing import List
 
 app = FastAPI()
@@ -27,7 +27,6 @@ def check_idempotency_key(idempotency_key):
         return True #the request has already been processed
     else:
         return False #the request has not been processed yet
-
 
 # Dependency to get the database session
 def get_db():
@@ -78,9 +77,16 @@ def create_booking(
     
     #check if a seat is already booked
     db_bookings = db.query(Booking).filter(Booking.show_id == show_id).all()
+    vectors=[] #list of vectors
     for db_booking in db_bookings:
-        if db_booking.seats == seats and show_id == db_booking.show_id:
-            raise HTTPException(status_code=400, detail=f"Seat {seats} already booked for booking {db_booking.id}")
+        Seat = SeperateSeats(db_booking.seats)
+        vec=SeatStringToVector(Seat)
+        vectors.append(vec)
+    #check if the seats are already booked in the list
+    for seat in seats.split(","):
+        seatVector=SeatStringToVector(seat)
+        if seatVector in vectors:
+            raise HTTPException(status_code=400, detail=f"Seat {SeatVectorToString(seatVector)} already booked")
 
     db.add(db_booking)
     db.commit()
@@ -231,6 +237,24 @@ def get_bookings_for_show(show_id: int, db: Session = Depends(get_db)):
     return [booking_to_dict(db_booking) for db_booking in db_bookings]
 
 
+#get seatmatrix for a show
+@app.get("/bookings/show/{show_id}/seatmatrix", response_model=List[List[int]])
+def get_seatmatrix_for_show(show_id: int, db: Session = Depends(get_db)):
+    db_bookings = db.query(Booking).filter(Booking.show_id == show_id).all()
+
+    if db_bookings is None:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    
+    vectors=[]
+    for db_booking in db_bookings:
+        
+        Seats = SeperateSeats(db_booking.seats)
+
+        for seat in Seats:
+            vec=SeatStringToVector(seat)
+            vectors.append(vec)
+    
+    return seatmatrix(vectors)
 
 
 @app.get("/hello")
