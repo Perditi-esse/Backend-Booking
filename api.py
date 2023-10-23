@@ -7,6 +7,13 @@ from helper import generate_qr_code, generate_ticket_pdf, SeatStringToVector, Se
 from typing import List
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 import requests
 
@@ -210,13 +217,13 @@ def get_booking(booking_id: int, db: Session = Depends(get_db)):
     
     return booking_to_dict(db_booking)
 
-# Get all bookings
+#GET a booking by transaction id
 @app.get("/bookings/all", response_model=List[BookingResponse])
 def get_all_bookings(db: Session = Depends(get_db)):
     db_bookings = db.query(Booking).all()
     return [booking_to_dict(db_booking) for db_booking in db_bookings]
 
-#get bookings by user id
+#GET a booking by user id
 @app.get("/bookings/user/{user_id}/", response_model=List[BookingResponse])
 def get_booking_by_user(user_id: int, db: Session = Depends(get_db)):
     db_bookings = db.query(Booking).filter(Booking.customer_id == user_id).all()
@@ -226,7 +233,7 @@ def get_booking_by_user(user_id: int, db: Session = Depends(get_db)):
     
     return [booking_to_dict(db_booking) for db_booking in db_bookings]
 
-# Get all bookings for a show
+#GET a booking by show id
 @app.get("/bookings/show/{show_id}/", response_model=List[BookingResponse])
 def get_bookings_for_show(show_id: int, db: Session = Depends(get_db)):
     db_bookings = db.query(Booking).filter(Booking.show_id == show_id).all()
@@ -237,7 +244,7 @@ def get_bookings_for_show(show_id: int, db: Session = Depends(get_db)):
     return [booking_to_dict(db_booking) for db_booking in db_bookings]
 
 
-#get seatmatrix for a show
+#GET a seatmatrix for a show
 @app.get("/bookings/show/{show_id}/seatmatrix", response_model=List[List[int]])
 def get_seatmatrix_for_show(show_id: int, db: Session = Depends(get_db)):
     db_bookings = db.query(Booking).filter(Booking.show_id == show_id).all()
@@ -256,7 +263,7 @@ def get_seatmatrix_for_show(show_id: int, db: Session = Depends(get_db)):
     
     return seatmatrix(vectors)
 
-
+#GET hello world
 @app.get("/hello")
 def hello():
     return "Hello World!"
