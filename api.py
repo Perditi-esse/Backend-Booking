@@ -188,9 +188,10 @@ def cancel_show(show_id: int,transaction_id: str, db: Session = Depends(get_db))
             booking.is_paid = False
         customer_ids.append([booking.customer_id,0])
     
-    #logic to send to usercontainer
-    #requests.post('https://dsssi-backend-user.greenplant-9a54dc56.germanywestcentral.azurecontainer.io/users/notify/', json={"customer_ids":customer_ids, "show_id": show_id, "idempotency_key": idempotency_key})
-
+    for customer_id in customer_ids:
+        idempotency_key=get_idempotency_key(f"booking contacting the user {customer_id[0]}container because of show "+str(show_id))
+        requests.post('https://backend-message-board.greenplant-9a54dc56.germanywestcentral.azurecontainerapps.io/messages/?transaction_id='+idempotency_key, json={'recipient': customer_id[0], 'header': 'Your show has been cancelled.', 'body':'You will get a refund of '+str(customer_id[1])+'€.'})
+    
     db.commit()
     return len(customer_ids) +"users affected and notified"
 
