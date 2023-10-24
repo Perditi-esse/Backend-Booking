@@ -114,27 +114,28 @@ def cancel_booking(booking_id: int, transaction_id: str,db: Session = Depends(ge
     return booking_to_bookingresponse(db_booking)
 
 # Pay for a booking
-@app.put("/bookings/{booking_id}/pay/{transaction_id}")
-def pay_booking(booking_id: int,transaction_id: str, db: Session = Depends(get_db)):
-    with resource_lock:
-        if check_idempotency_key(transaction_id):
-            raise HTTPException(status_code=400, detail="Transaction already recieved")
-        #add it only after checking if it is already in the list
-        inward_transaction_ids.append(transaction_id)
-
+@app.put("/bookings/{booking_id}/pay")
+def pay_booking(booking_id: int, db: Session = Depends(get_db)):
+    print("paying booking")
     db_booking = db.query(Booking).filter(Booking.id == booking_id).first()
-    
+    print(db_booking)
     if db_booking is None:
         raise HTTPException(status_code=404, detail="Booking not found")
     
+    print("booking found")
     db_booking.is_paid = True
     db.commit()
     db.refresh(db_booking)
     # Generate a QR code for the booking
     key=get_idempotency_key('booking validating the booking'+str(db_booking.id))
+    # Generate a QR code for the booking
+    print("generating qr code")
+    ###
+    
     validateURL=f'https://dsssi-backend-booking.greenplant-9a54dc56.germanywestcentral.azurecontainerapps.io/bookings/{db_booking.id}/validate/{key}'
     QRc=generate_qr_code(validateURL)
-    pdf_file_path=generate_ticket_pdf(db_booking.seats, db_booking.amount, QRc, db_booking.datetime)
+    print("generating qr code")
+    pdf_file_path=generate_ticket_pdf(db_booking.seats, db_booking.amount, QRc )
     
     # Send the PDF file as a response with appropriate headers
     response = FileResponse(pdf_file_path, headers={"Content-Disposition": "attachment; filename=booking_ticket.pdf"})
@@ -151,7 +152,7 @@ def validate_booking(booking_id: int,transaction_id: str, db: Session = Depends(
         inward_transaction_ids.append(transaction_id)
 
 
-    db_booking = db.query(Booking).filter(Booking.id == booking_id).first()
+    db_booking = db.query(Booking).filter(Booking.id == booking_id)
     
     if db_booking is None:
         raise HTTPException(status_code=404, detail="Booking not found")

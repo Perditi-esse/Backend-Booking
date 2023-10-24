@@ -7,7 +7,7 @@ def generate_qr_code(data):
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=10,
+        box_size=100,
         border=4,
     )
     qr.add_data(data)
@@ -16,7 +16,7 @@ def generate_qr_code(data):
     return qr_img
 
 # Function to generate a PDF ticket with the QR code
-def generate_ticket_pdf(seats, amount, qr_code_image, date_time):
+def generate_ticket_pdf(seats, amount, qr_code_image):
     class TicketPDF(FPDF):
         def header(self):
             self.set_font('Arial', 'B', 12)
@@ -36,7 +36,6 @@ def generate_ticket_pdf(seats, amount, qr_code_image, date_time):
     pdf.chapter_title("Ticket Details:")
     pdf.chapter_body(f"Seats: {seats}")
     pdf.chapter_body(f"Amount: {amount}")
-    pdf.chapter_body(f"Date and Time: {date_time}")
 
     qr_code_path = 'qr_code.png'
     qr_code_image.save(qr_code_path)
@@ -47,9 +46,4 @@ def generate_ticket_pdf(seats, amount, qr_code_image, date_time):
     pdf.output(pdf_file_path)
     os.remove(qr_code_path)
     return pdf_file_path
-
-# Example usage:
-data = "Sample QR Code Data"
-qr_code_image = generate_qr_code(data)
-generate_ticket_pdf("A1, A2", "$50", qr_code_image, "2023-09-21 15:00")
 
