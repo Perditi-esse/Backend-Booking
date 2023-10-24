@@ -27,7 +27,7 @@ resource_lock = threading.Lock()
 inward_transaction_ids = []
 
 def get_idempotency_key(string):
-    response = requests.post('https://backend-idempotency-provider.your-service.com/generate-key/', json={'description': string})
+    response = requests.post('https://backend-idempotency-provider.greenplant-9a54dc56.germanywestcentral.azurecontainerapps.io/generate-key/', json={'description': string})
     data = response.json()
     idempotency_key = data['key']
     return idempotency_key
@@ -85,7 +85,7 @@ def create_booking(request: BookingCreate, db: Session = Depends(get_db)):
 
     ##start the eventual concistency
     for seat in seats:
-        key=get_idempotency_key(f"makring seat {seat} as booked in show{show_id}")
+        key=get_idempotency_key(f"marking seat {seat} as booked in show{show_id}")
         requests.post(f"https://dsssi-backend-lookup.greenplant-9a54dc56.germanywestcentral.azurecontainerapps.io/sitzplatzReservieren?sitzplan={show_id}&sitz={seat}&besetzt={True}&idemKey={key}")
     
     return booking_to_bookingresponse(db_booking)
@@ -130,15 +130,16 @@ def pay_booking(booking_id: int,transaction_id: str, db: Session = Depends(get_d
     db_booking.is_paid = True
     db.commit()
     db.refresh(db_booking)
-    """
-    validateURL=f'https://dsssi-backend-booking.greenplant-9a54dc56.germanywestcentral.azurecontainerapps.io/bookings/{db_booking.id}/validate/{get_idempotency_key("booking validating the booking "+str(db_booking.id))}'
+    # Generate a QR code for the booking
+    key=get_idempotency_key('booking validating the booking'+str(db_booking.id))
+    validateURL=f'https://dsssi-backend-booking.greenplant-9a54dc56.germanywestcentral.azurecontainerapps.io/bookings/{db_booking.id}/validate/{key}'
     QRc=generate_qr_code(validateURL)
     pdf_file_path=generate_ticket_pdf(db_booking.seats, db_booking.amount, QRc, db_booking.datetime)
     
     # Send the PDF file as a response with appropriate headers
     response = FileResponse(pdf_file_path, headers={"Content-Disposition": "attachment; filename=booking_ticket.pdf"})
-    """
-    return "sds"
+    
+    return response
 
 # Validate a booking/ticket as used
 @app.put("/bookings/{booking_id}/validate/{transaction_id}", response_model=BookingResponse)
