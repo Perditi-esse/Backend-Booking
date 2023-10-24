@@ -3,8 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from fastapi.responses import FileResponse
 from database import Booking, SessionLocal, BookingCreate, BookingUpdate, BookingResponse
-from helper import generate_qr_code, generate_ticket_pdf, SeatStringToVector, SeatVectorToString,seatmatrix,SeperateSeats
+from helper import generate_qr_code, generate_ticket_pdf, SeatStringToVector, SeatVectorToString,seatmatrix,SeperateSeats,flatten_list
 from typing import List
+import requests
+import threading
 
 app = FastAPI()
 app.add_middleware(
@@ -15,7 +17,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-import requests
+#mutex for the resource
+resource_lock = threading.Lock()
 
 #transaction id generator
 #list for transaction ids
@@ -43,8 +46,7 @@ def get_db():
     finally:
         db.close()
 
-# Function to construct a dictionary response from a Booking instance
-def booking_to_dict(booking):
+def booking_to_dict(booking: Booking):
     return {
         "id": booking.id,
         "show_id": booking.show_id,
@@ -53,50 +55,63 @@ def booking_to_dict(booking):
         "amount": booking.amount,
         "is_paid": booking.is_paid,
         "is_used": booking.is_used,
-        "datetime": booking.datetime,
+        "datetime": booking.datetime
     }
 
+
 # Create a new booking
-@app.post("/bookings/{transaction_id}", response_model=BookingResponse)
-def create_booking(booking_data: BookingCreate,transaction_id: str, db: Session = Depends(get_db)):
-    if check_idempotency_key(transaction_id):
-        raise HTTPException(status_code=400, detail="Transaction already recieved")
-    #add it only after checking if it is already in the list
-    inward_transaction_ids.append(transaction_id)
+@app.post("/bookings/new", response_model=BookingResponse)
+def create_booking(booking_data: BookingCreate, db: Session = Depends(get_db)):
+    with resource_lock:
+        if check_idempotency_key(booking_data.transaction_id):
+            raise HTTPException(status_code=400, detail="Transaction already recieved")
+        #add it only after checking if it is already in the list
+        inward_transaction_ids.append(booking_data.transaction_id)
 
     show_id=booking_data.show_id
     customer_id=booking_data.customer_id
-    seats=str(booking_data.seats)
+    seats=booking_data.seats#intlist
+    amount=booking_data.amount
 
-    if db.query(Booking).filter(Booking.show_id == show_id).filter(Booking.customer_id == customer_id).first() is not None:
-        raise HTTPException(status_code=400, detail="Booking already exists")
-    
-    #check if a seat is already booked
-    db_bookings = db.query(Booking).filter(Booking.show_id == show_id).all()
-    vectors=[] #list of vectors
-    for db_booking in db_bookings:
-        Seat = SeperateSeats(db_booking.seats)
-        vec=SeatStringToVector(Seat)
-        vectors.append(vec)
-    #check if the seats are already booked in the list
-    for seat in seats.split(","):
-        seatVector=SeatStringToVector(seat)
-        if seatVector in vectors:
-            raise HTTPException(status_code=400, detail=f"Seat {SeatVectorToString(seatVector)} already booked")
 
-    db.add(db_booking)
-    db.commit()
-    db.refresh(db_booking)
+    #enter mutex
+    with resource_lock:
+
+        #check if a seat is already booked
+        seatlist=[]
+
+        db_bookings = db.query(Booking).filter(Booking.show_id == show_id).all()
+        for booking in db_bookings:
+            seatlist.append(booking.seats)
+
+        seatlist=flatten_list(seatlist)
+
+        if any(seat in seatlist for seat in seats):
+            raise HTTPException(status_code=400, detail="Seat already booked")
+            
+        db_booking=Booking(show_id=show_id, customer_id=customer_id, seats=str(seats), amount=amount, is_paid=False, is_used=False)
+
+        db.add(db_booking)
+        db.commit()
+        db.refresh(db_booking)
+    #exit mutex
+
+    ##start the eventual concistency
+
+    for seat in seats:
+        key=get_idempotency_key(f"makring seat {seat} as booked in show{show_id}")
+        requests.post(f"https://dsssi-backend-lookup.greenplant-9a54dc56.germanywestcentral.azurecontainerapps.io/sitzplatzReservieren?sitzplan={show_id}&sitz={seat}&besetzt={True}&idemKey={key}")
 
     return booking_to_dict(db_booking)
 
 # Cancel a booking and process a refund if paid
 @app.delete("/bookings/{booking_id}/{transaction_id}", response_model=BookingResponse)
 def cancel_booking(booking_id: int, transaction_id: str,db: Session = Depends(get_db)):
-    if check_idempotency_key(transaction_id):
-        raise HTTPException(status_code=400, detail="Transaction already recieved")
-    #add it only after checking if it is already in the list
-    inward_transaction_ids.append(transaction_id)
+    with resource_lock:
+        if check_idempotency_key(transaction_id):
+            raise HTTPException(status_code=400, detail="Transaction already recieved")
+        #add it only after checking if it is already in the list
+        inward_transaction_ids.append(transaction_id)
 
     db_booking = db.query(Booking).filter(Booking.id == booking_id).first()
     
@@ -115,10 +130,11 @@ def cancel_booking(booking_id: int, transaction_id: str,db: Session = Depends(ge
 # Pay for a booking
 @app.put("/bookings/{booking_id}/pay/{transaction_id}", response_model=BookingResponse)
 def pay_booking(booking_id: int,transaction_id: str, db: Session = Depends(get_db)):
-    if check_idempotency_key(transaction_id):
-        raise HTTPException(status_code=400, detail="Transaction already recieved")
-    #add it only after checking if it is already in the list
-    inward_transaction_ids.append(transaction_id)
+    with resource_lock:
+        if check_idempotency_key(transaction_id):
+            raise HTTPException(status_code=400, detail="Transaction already recieved")
+        #add it only after checking if it is already in the list
+        inward_transaction_ids.append(transaction_id)
 
     db_booking = db.query(Booking).filter(Booking.id == booking_id).first()
     
@@ -140,10 +156,11 @@ def pay_booking(booking_id: int,transaction_id: str, db: Session = Depends(get_d
 # Validate a booking/ticket as used
 @app.put("/bookings/{booking_id}/validate/{transaction_id}", response_model=BookingResponse)
 def validate_booking(booking_id: int,transaction_id: str, db: Session = Depends(get_db)):
-    if check_idempotency_key(transaction_id):
-        raise HTTPException(status_code=400, detail="Transaction already recieved")
-    #add it only after checking if it is already in the list
-    inward_transaction_ids.append(transaction_id)
+    with resource_lock:
+        if check_idempotency_key(transaction_id):
+            raise HTTPException(status_code=400, detail="Transaction already recieved")
+        #add it only after checking if it is already in the list
+        inward_transaction_ids.append(transaction_id)
 
 
     db_booking = db.query(Booking).filter(Booking.id == booking_id).first()
@@ -164,11 +181,11 @@ def validate_booking(booking_id: int,transaction_id: str, db: Session = Depends(
 #inform all users with a booking for a specific show that the show is cancelled and notifys them that they will get a refund
 @app.put("/shows/{show_id}/cancel/{transaction_id}", response_model=BookingResponse)
 def cancel_show(show_id: int,transaction_id: str, db: Session = Depends(get_db)):
-    
-    if check_idempotency_key(transaction_id):
-        raise HTTPException(status_code=400, detail="Transaction already recieved")
-    #add it only after checking if it is already in the list
-    inward_transaction_ids.append(transaction_id)
+    with resource_lock:
+        if check_idempotency_key(transaction_id):
+            raise HTTPException(status_code=400, detail="Transaction already recieved")
+        #add it only after checking if it is already in the list
+        inward_transaction_ids.append(transaction_id)
     
     #generate a new idempotency key for outbound transaction
     idempotency_key = get_idempotency_key("booking contacting the user container because of show "+str(show_id))

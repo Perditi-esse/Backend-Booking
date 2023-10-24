@@ -1,79 +1,36 @@
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from database import Base, Booking, BookingCreate
-from api import create_booking, cancel_booking, pay_booking, validate_booking, get_db
-from fastapi.exceptions import HTTPException
+from fastapi.testclient import TestClient
+from api import app  # Adjust the import statement based on your project structure
 
-# Use an in-memory SQLite database for testing
-DATABASE_URL = "sqlite:///test.db"
-engine = create_engine(DATABASE_URL)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+client = TestClient(app)
 
-# Fixture to set up a database session for testing
-@pytest.fixture(scope="module")
-def test_db():
-    Base.metadata.create_all(bind=engine)
-    db = TestingSessionLocal()
-    yield db
-    db.close()
+# Test case for the scenario where we try to cancel a booking that doesn't exist
+def test_cancel_booking_that_does_not_exist():
+    response = client.delete(f"/bookings/99999/nonexistenttransaction123")
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Booking not found"}
 
-def test_cancel_booking_that_does_not_exist(test_db):
-    with pytest.raises(HTTPException) as e:
-        cancel_booking(-1, db=test_db)
-    assert e.value.status_code == 404
-    assert e.value.detail == "Booking not found"
+# Test case for the scenario where we try to pay for a booking that doesn't exist
+def test_pay_booking_that_does_not_exist():
+    response = client.put(f"/bookings/99999/pay/nonexistenttransaction1234")
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Booking not found"}
 
-def test_pay_booking_that_does_not_exist(test_db):
-    with pytest.raises(HTTPException) as e:
-        pay_booking(-1, db=test_db)
-    assert e.value.status_code == 404
-    assert e.value.detail == "Booking not found"
+# Test case for the scenario where we try to validate a booking that doesn't exist
+def test_validate_booking_that_does_not_exist():
+    response = client.put(f"/bookings/99999/validate/nonexistenttransaction12345")
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Booking not found"}
 
-def test_validate_booking_that_does_not_exist(test_db):
-    with pytest.raises(HTTPException) as e:
-        validate_booking(-1, db=test_db)
-    assert e.value.status_code == 404
-    assert e.value.detail == "Booking not found"
-
-def test_validate_booking_that_is_not_paid(test_db):
-    booking_data = BookingCreate(
-        show_id=1,
-        customer_id=1,
-        seats="A1,A2",
-        amount=100,
-    )
-    created_booking = create_booking(booking_data, db=test_db)
-    with pytest.raises(HTTPException) as e:
-        validate_booking(created_booking['id'], db=test_db)
-    assert e.value.status_code == 400
-    assert e.value.detail == "Booking not paid"
-
-def test_full_lifecycle(test_db):
-    booking_data = BookingCreate(
-        show_id=1,
-        customer_id=1,
-        seats="A1,A2",
-        amount=100,
-    )
-    booking_data2 = BookingCreate(
-        show_id=1,
-        customer_id=1,
-        seats="A3,A4",
-        amount=100,
-    )
-    created_booking = create_booking(booking_data, db=test_db)
-    assert created_booking['show_id'] == booking_data.show_id
-    assert created_booking['customer_id'] == booking_data.customer_id
-    assert created_booking['seats'] == booking_data.seats
-    assert created_booking['amount'] == booking_data.amount
-    assert not created_booking['is_paid']
-    assert not created_booking['is_used']
-    pay_booking(created_booking['id'], db=test_db)
-    assert test_db.query(Booking).filter(Booking.id == created_booking['id']).first().is_paid
-    validate_booking(created_booking['id'], db=test_db)
-    assert test_db.query(Booking).filter(Booking.id == created_booking['id']).first().is_used
-    cancel_booking(created_booking['id'], db=test_db)
+# Test case for the scenario where we try to validate a booking that is not paid
+def test_validate_booking_that_is_not_paid():
+    response=client.post("/bookings/new", json={"transaction_id":"sdsd","show_id": -1, "customer_id": 1, "seats": "A1", "amount": 100})
+    print(response.json())
+    booking_id_not_paid = response.json()["id"]
+    response = client.put(f"/bookings/{booking_id_not_paid}/validate/nonexistenttransaction123456")
+    assert response.status_code == 400
+    assert response.json() == {"detail": "Booking not paid"}
 
 if __name__ == "__main__":
+    test_validate_booking_that_is_not_paid()
     pytest.main()

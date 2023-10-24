@@ -86,3 +86,14 @@ def seatmatrix(seats):
     for seat in seats:
         seatMatrix[seat[1]][seat[2]]=1
     return seatMatrix
+def flatten_list(nested_list):
+    """ Flattens a list of lists into a single list. """
+    flat_list = []
+    for element in nested_list:
+        if isinstance(element, list):
+            # If the element is a list, extend the result with a flattened version of this element
+            flat_list.extend(flatten_list(element))
+        else:
+            # If the element is not a list, just append it to the result list
+            flat_list.append(element)
+    return flat_list

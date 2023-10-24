@@ -33,12 +33,14 @@ class Booking(Base):
 
 # Pydantic models for input data (request bodies)
 class BookingCreate(BaseModel):
+    transaction_id: str
     show_id: int
     customer_id: int
-    seats: str
+    seats: list(int)#this needs to be a list of ints
     amount: int
 
 class BookingUpdate(BaseModel):
+    transaction_id: str
     is_paid: bool
     is_used: bool
 
