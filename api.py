@@ -69,12 +69,14 @@ def create_booking(request: BookingCreate, db: Session = Depends(get_db)):
     # enter mutex
     with resource_lock:
         # check if a seat is already booked
-        seatlist = []
+        seatlist = [] #for all already booked seats
         db_bookings = db.query(Booking).filter(Booking.show_id == show_id).all()
         for booking in db_bookings:
             seatlist.append(booking.seats)
+
+
         seatlist = list(itertools.chain.from_iterable(seatlist))
-        print(seatlist)
+        
         if any(seat in seatlist for seat in seats):
             raise HTTPException(status_code=400, detail="Seat already booked")
         db_booking = Booking(show_id=show_id, customer_id=customer_id, seats=seats, amount=amount, is_paid=False, is_used=False)
@@ -123,9 +125,17 @@ def cancel_booking(booking_id: int, transaction_id: str,db: Session = Depends(ge
     seats=db_booking.seats
     show_id=db_booking.show_id
     for seat in seats:
-        key=get_idempotency_key(f"marking seat {seat} as booked in show{show_id}")
-        requests.post(f"https://dsssi-backend-lookup.greenplant-9a54dc56.germanywestcentral.azurecontainerapps.io/sitzplatzReservieren?sitzplan={show_id}&sitz={seat}&besetzt={False}&idemKey={key}")
-    return booking_to_bookingresponse(db_booking)
+        key=get_idempotency_key(f"marking seat {seat} as notbooked in show{show_id}")
+
+        url = f'https://dsssi-backend-lookup.greenplant-9a54dc56.germanywestcentral.azurecontainerapps.io/sitzplatzReservieren?sitzplan={show_id}&sitz={seat}&besetzt=false&transID={key}'
+
+        payload = {}
+        headers = {}
+
+        requests.request("POST", url, headers=headers, data=payload)
+
+
+        return booking_to_bookingresponse(db_booking)
 
 # Pay for a booking
 @app.put("/bookings/{booking_id}/pay")
