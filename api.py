@@ -265,6 +265,16 @@ def get_bookings_for_show(show_id: int, db: Session = Depends(get_db)):
     
     return [booking_to_bookingresponse(db_booking) for db_booking in db_bookings]
 
+#GET Booking ID per User Per show
+@app.get("/bookings/show/{show_id}/user/{user_id}/", response_model=List[BookingResponse])
+def get_booking_for_show_and_user(show_id: int, user_id: int, db: Session = Depends(get_db)):
+    db_bookings = db.query(Booking).filter(Booking.show_id == show_id).filter(Booking.customer_id == user_id).all()
+    
+    if db_bookings is None:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    
+    return [booking_to_bookingresponse(db_booking) for db_booking in db_bookings]
+
 
 if __name__ == "__main__":
     import uvicorn
