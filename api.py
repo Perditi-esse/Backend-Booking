@@ -86,7 +86,13 @@ def create_booking(request: BookingCreate, db: Session = Depends(get_db)):
     ##start the eventual concistency
     for seat in seats:
         key=get_idempotency_key(f"marking seat {seat} as booked in show{show_id}")
-        requests.post(f"https://dsssi-backend-lookup.greenplant-9a54dc56.germanywestcentral.azurecontainerapps.io/sitzplatzReservieren?sitzplan={show_id}&sitz={seat}&besetzt={True}&idemKey={key}")
+        
+        url = f'https://dsssi-backend-lookup.greenplant-9a54dc56.germanywestcentral.azurecontainerapps.io/sitzplatzReservieren?sitzplan={show_id}&sitz={seat}&besetzt=true&transID={key}'
+
+        payload = {}
+        headers = {}
+
+        requests.request("POST", url, headers=headers, data=payload)
     
     return booking_to_bookingresponse(db_booking)
 
@@ -111,30 +117,40 @@ def cancel_booking(booking_id: int, transaction_id: str,db: Session = Depends(ge
     
     db.delete(db_booking)
     db.commit()
+
+
+    #start eventual consistency
+    seats=db_booking.seats
+    show_id=db_booking.show_id
+    for seat in seats:
+        key=get_idempotency_key(f"marking seat {seat} as booked in show{show_id}")
+        requests.post(f"https://dsssi-backend-lookup.greenplant-9a54dc56.germanywestcentral.azurecontainerapps.io/sitzplatzReservieren?sitzplan={show_id}&sitz={seat}&besetzt={False}&idemKey={key}")
     return booking_to_bookingresponse(db_booking)
 
 # Pay for a booking
 @app.put("/bookings/{booking_id}/pay")
 def pay_booking(booking_id: int, db: Session = Depends(get_db)):
-    print("paying booking")
+    
     db_booking = db.query(Booking).filter(Booking.id == booking_id).first()
-    print(db_booking)
+    
     if db_booking is None:
         raise HTTPException(status_code=404, detail="Booking not found")
     
-    print("booking found")
+    if db_booking.is_paid:
+        raise HTTPException(status_code=200, detail="Booking already paid")
+    
     db_booking.is_paid = True
     db.commit()
     db.refresh(db_booking)
     # Generate a QR code for the booking
     key=get_idempotency_key('booking validating the booking'+str(db_booking.id))
     # Generate a QR code for the booking
-    print("generating qr code")
+   
     ###
     
     validateURL=f'https://dsssi-backend-booking.greenplant-9a54dc56.germanywestcentral.azurecontainerapps.io/bookings/{db_booking.id}/validate/{key}'
     QRc=generate_qr_code(validateURL)
-    print("generating qr code")
+    
     pdf_file_path=generate_ticket_pdf(db_booking.seats, db_booking.amount, QRc )
     
     # Send the PDF file as a response with appropriate headers
@@ -157,10 +173,11 @@ def validate_booking(booking_id: int,transaction_id: str, db: Session = Depends(
     if db_booking is None:
         raise HTTPException(status_code=404, detail="Booking not found")
     
-    if db_booking.is_used:
-        raise HTTPException(status_code=400, detail="Booking already validated")
     if not db_booking.is_paid:
         raise HTTPException(status_code=400, detail="Booking not paid")
+    
+    if db_booking.is_used:
+        raise HTTPException(status_code=400, detail="Booking already validated")
     
     db_booking.is_used = True
     db.commit()
@@ -238,10 +255,6 @@ def get_bookings_for_show(show_id: int, db: Session = Depends(get_db)):
     
     return [booking_to_bookingresponse(db_booking) for db_booking in db_bookings]
 
-#GET hello world
-@app.get("/hello")
-def hello():
-    return "Hello World!"
 
 if __name__ == "__main__":
     import uvicorn

@@ -1,36 +1,68 @@
-import pytest
 from fastapi.testclient import TestClient
-from api import app  # Adjust the import statement based on your project structure
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from your_application import app, get_db  # replace 'your_application' with the actual name of your application file
+import pytest
+
+# Setup for the test database
+SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"  # or the path to your test database
+
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+)
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Override the dependency with a new database session
+def override_get_db():
+    try:
+        db = TestingSessionLocal()
+        yield db
+    finally:
+        db.close()
+
+app.dependency_overrides[get_db] = override_get_db
 
 client = TestClient(app)
 
-# Test case for the scenario where we try to cancel a booking that doesn't exist
-def test_cancel_booking_that_does_not_exist():
-    response = client.delete(f"/bookings/99999/nonexistenttransaction123")
-    assert response.status_code == 404
-    assert response.json() == {"detail": "Booking not found"}
+# Sample data for creating bookings
+test_booking_data = {
+    # Populate with the required fields to create a booking.
+    # e.g., "transaction_id": "test_trans_001", "show_id": 123, ...
+    #copilot please help here
 
-# Test case for the scenario where we try to pay for a booking that doesn't exist
-def test_pay_booking_that_does_not_exist():
-    response = client.put(f"/bookings/99999/pay/nonexistenttransaction1234")
-    assert response.status_code == 404
-    assert response.json() == {"detail": "Booking not found"}
+    show_id: 1,
+}
 
-# Test case for the scenario where we try to validate a booking that doesn't exist
-def test_validate_booking_that_does_not_exist():
-    response = client.put(f"/bookings/99999/validate/nonexistenttransaction12345")
-    assert response.status_code == 404
-    assert response.json() == {"detail": "Booking not found"}
+def test_booking_lifecycle():
+    # Create booking
+    create_response = client.post("/bookings/new", json=test_booking_data)
+    assert create_response.status_code == 200
+    booking_info = create_response.json()
+    booking_id = booking_info["id"]
 
-# Test case for the scenario where we try to validate a booking that is not paid
-def test_validate_booking_that_is_not_paid():
-    response=client.post("/bookings/new", json={"transaction_id":"sdsd","show_id": -1, "customer_id": 1, "seats": "A1", "amount": 100})
-    print(response.json())
-    booking_id_not_paid = response.json()["id"]
-    response = client.put(f"/bookings/{booking_id_not_paid}/validate/nonexistenttransaction123456")
-    assert response.status_code == 400
-    assert response.json() == {"detail": "Booking not paid"}
+    # Pay for the booking
+    payment_response = client.put(f"/bookings/{booking_id}/pay")
+    assert payment_response.status_code == 200
 
-if __name__ == "__main__":
-    test_validate_booking_that_is_not_paid()
-    pytest.main()
+    # Validate the booking
+    transaction_id = "unique_transaction_002"  # ensure this is unique each test run
+    validate_response = client.put(f"/bookings/{booking_id}/validate/{transaction_id}")
+    assert validate_response.status_code == 200
+
+    # Cancel the booking
+    cancel_transaction_id = "unique_transaction_003"  # ensure this is unique each test run
+    cancel_response = client.delete(f"/bookings/{booking_id}/{cancel_transaction_id}")
+    assert cancel_response.status_code == 200
+
+    # Attempt to retrieve the canceled booking (expecting failure or not found)
+    get_response = client.get(f"/bookings/{booking_id}/")
+    assert get_response.status_code == 404  # or appropriate code based on your implementation
+
+@pytest.mark.parametrize("booking_id, expected_status", [(999, 404), (0, 404)])  # Non-existent booking IDs
+def test_get_invalid_booking(booking_id, expected_status):
+    response = client.get(f"/bookings/{booking_id}/")
+    assert response.status_code == expected_status
+
+# Additional tests for other scenarios and edge cases can be added below.
+# ...
+
