@@ -86,15 +86,15 @@ def create_booking(request: BookingCreate, db: Session = Depends(get_db)):
         # exit 
 
     ##start the eventual concistency
-    for seat in seats:
-        key=get_idempotency_key(f"marking seat {seat} as booked in show{show_id}")
-        
-        url = f'https://dsssi-backend-lookup.greenplant-9a54dc56.germanywestcentral.azurecontainerapps.io/sitzplatzReservieren?sitzplan={show_id}&sitz={seat}&besetzt=true&transID={key}'
+        for seat in seats:
+            key=get_idempotency_key(f"marking seat {seat} as booked in show{show_id}")
+            
+            url = f'https://dsssi-backend-lookup.greenplant-9a54dc56.germanywestcentral.azurecontainerapps.io/sitzplatzReservieren?sitzplan={show_id}&sitz={seat}&besetzt=true&transID={key}'
 
-        payload = {}
-        headers = {}
+            payload = {}
+            headers = {}
 
-        requests.request("POST", url, headers=headers, data=payload)
+            requests.request("POST", url, headers=headers, data=payload)
     
     return booking_to_bookingresponse(db_booking)
 
