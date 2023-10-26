@@ -1,5 +1,4 @@
-@startuml scan ticket
-
+@startuml show remove
 !define AzurePuml /home/ian/Documents/Azure-PlantUML-2.2/dist
 !include AzurePuml/AzureCommon.puml
 !include AzurePuml/Containers/AzureContainerRegistry.puml
@@ -17,31 +16,41 @@
 !include AzurePuml/Management/AzureUserPrivacy.puml
 
 
-    package "Databases" {
-        AzureSqlDatabase(sqlDatabase, "Users","AzureHosted")
         AzureSqlDatabase(MovieselDatabase, "Movies","AzureHosted")
         AzureSqlDatabase(NoSqlDatabase, "Bookings and Tickets","in Container Memory")
-    }
+
+
 
     Package "Frontend" {
         AzureContainerApp(FrontendWeb, "Frotnend Web","1-2 Instances")
         AzureContainerApp(FrontendMitarbeiter, "Frontend Mitarbeiter","1 Instance")
     }
 
-    Package "Backend" {
-        AzureContainerApp(BackendBooking, "Backend Booking","1-2 Instances")
-        AzureContainerApp(BackendLook, "Backend Movie selection","1-2 Instances")
-        AzureContainerApp(BackendUser, "Backend User","1-2 Instances")
-    }
 
-AzureUserPrivacy(User, "User", "User")
-AzureUserPrivacy(Mitarbeiter, "Mitarbeiter", "Mitarbeiter")
+        AzureContainerApp(BackendBooking, "Backend Booking","1 Instances")
+        AzureContainerApp(BackendLook, "Backend Movie selection","1 Instances")
+        AzureContainerApp(BackendUser, "Backend User","1 Instances")
+        AzureContainerApp(Idempotency, "Idempotency","1 Instances")
+        AzureContainerApp(BackendMes, "Backend Messages","1 Instances")
+
+FrontendMitarbeiter-->Idempotency:1 Register Operation 
+FrontendMitarbeiter-->BackendLook :2 start Cancel Show
+BackendLook-->Idempotency:3 Register Operation
+BackendLook-->BackendBooking :4 start Cancel Show
+BackendBooking-->Idempotency:5 Register Operation
+BackendBooking-->BackendMes :6 Post Messages to Users Inbox
+BackendBooking-->NoSqlDatabase :7 Save remove bookings
+BackendBooking-->BackendLook :8 i informed X users and refund
+BackendLook-->MovieselDatabase :9 Save remove show
+BackendLook-->FrontendMitarbeiter :10 done
+
+FrontendWeb-->BackendUser :1 Login
+FrontendWeb-->BackendMes :2 Get Messages
+FrontendWeb-->FrontendWeb: be dissapointed
 
 
 
-Mitarbeiter -- FrontendWeb: scanQRCode()
-FrontendWeb -- BackendBooking: validateTicket()
-BackendBooking -- NoSqlDatabase: invalidateTicketInDatabase()
+
 
 @enduml
 

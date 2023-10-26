@@ -261,7 +261,7 @@ def validate_booking(booking_id: int,transaction_id: str, db: Session = Depends(
     return booking_to_bookingresponse(db_booking)
 
 #inform all users with a booking for a specific show that the show is cancelled and notifys them that they will get a refund
-@app.put("/shows/{show_id}/cancel/{transaction_id}", response_model=BookingResponse)
+@app.put("/shows/{show_id}/cancel/{transaction_id}")
 def cancel_show(show_id: int,transaction_id: str, db: Session = Depends(get_db)):
     with resource_lock:
         if check_idempotency_key(transaction_id):
@@ -285,16 +285,21 @@ def cancel_show(show_id: int,transaction_id: str, db: Session = Depends(get_db))
         customer_ids.append([booking.customer_id,0])
     
     for customer_id in customer_ids:
-        idempotency_key=get_idempotency_key(f"booking contacting the user {customer_id[0]}container because of show "+str(show_id))
+        idempotency_key=get_idempotency_key(f"booking contacting the user {customer_id}container because of show "+str(show_id))
         payload_dict = {
         "message": {
             "header": "WICHITG: Die Vorstellung wurde abgesagt",
             "body": "Wir hoffen du hast Verständnis dass auch wir manchmal Probleme haben, wir haben den Folgenden Betrag Rückerstattet: "+str(customer_id[1])+"$."
         }
         }
-        contact_user_container(db_booking.customer_id,idempotency_key,payload_dict)
+        contact_user_container(customer_id[0],idempotency_key,payload_dict)
+    
+    #delete bookings
+    db.query(Booking).filter(Booking.show_id == show_id).delete()
+
+
     db.commit()
-    return len(customer_ids) +"users affected and notified"
+    return str(len(customer_ids)) +"users affected and notified"
 
 
 
