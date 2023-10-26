@@ -6,9 +6,10 @@ from database import booking_to_bookingresponse,Booking, SessionLocal, BookingCr
 from helper import generate_qr_code, generate_ticket_pdf
 from typing import List
 import requests
-from fastapi import FastAPI, HTTPException, Depends, Request
+from fastapi import FastAPI, HTTPException, Depends
 import threading
 import itertools
+import json
 
 app = FastAPI()
 app.add_middleware(
@@ -37,7 +38,14 @@ def check_idempotency_key(idempotency_key):
         return True #the request has already been processed
     else:
         return False #the request has not been processed yet
-
+    
+def contact_user_container(customer_id,idempotency_key,message):
+    url = "https://backend-message-board.greenplant-9a54dc56.germanywestcentral.azurecontainerapps.io/messages/"
+    payloaddict={"message":{"header":message["message"]["header"],"body":message["message"]["body"]},"transaction_id": idempotency_key,"recipient": customer_id}
+    payload = json.dumps(payloaddict)
+    headers = {}
+    requests.request("POST", url, headers=headers, data=payload)
+    
 # Dependency to get the database session
 def get_db():
     db = SessionLocal()
@@ -64,6 +72,7 @@ def create_booking(request: BookingCreate, db: Session = Depends(get_db)):
     customer_id = request.customer_id
     seats = request.seats
     amount = request.amount
+
 
     
     # enter mutex
@@ -96,6 +105,19 @@ def create_booking(request: BookingCreate, db: Session = Depends(get_db)):
 
             requests.request("POST", url, headers=headers, data=payload)
     
+        #inform user seats are blocked and he has to pay
+        idempotency_key=get_idempotency_key(f"booking contacting the user {db_booking.customer_id}container because of show "+str(db_booking.show_id))
+        payload_dict = {
+        "message": {
+            "header": "Your Booking has been Recieved",
+            "body": "Thank you for your Order please pay now."
+        }
+        }
+        contact_user_container(db_booking.customer_id,idempotency_key,payload_dict)
+
+    
+
+    
     return booking_to_bookingresponse(db_booking)
 
 # Cancel a booking and process a refund if paid
@@ -109,16 +131,37 @@ def cancel_booking(booking_id: int, transaction_id: str,db: Session = Depends(ge
 
 
     db_booking = db.query(Booking).filter(Booking.id == booking_id).first()
-    
+
     if db_booking is None:
         raise HTTPException(status_code=404, detail="Booking not found")
     if db_booking.is_paid:
         # Process refund logic here (you can implement this as needed)
         # request to user container to give the man his balance back
         db_booking.is_paid = False
+        # Generate a new idempotency key for the outbound transaction
+        idempotency_key=get_idempotency_key(f"booking contacting the user {db_booking.customer_id}container because of show "+str(db_booking.show_id))
+        payload_dict = {
+        "message": {
+            "header": "Your Booking has been Cancelled",
+            "body": f'we will refund you {db_booking.amount}$.'
+        }
+        }
+        contact_user_container(db_booking.customer_id,idempotency_key,payload_dict)
+    else:
+
+    # Generate a new idempotency key for the outbound transaction
+        idempotency_key=get_idempotency_key(f"booking contacting the user {db_booking.customer_id}container because of show "+str(db_booking.show_id))
+        payload_dict = {
+        "message": {
+            "header": "Your Booking has been Cancelled",
+            "body": "We are sorry."
+        }
+        }
+        contact_user_container(db_booking.customer_id,idempotency_key,payload_dict)
     
     db.delete(db_booking)
     db.commit()
+
 
 
     #start eventual consistency
@@ -148,16 +191,25 @@ def pay_booking(booking_id: int, db: Session = Depends(get_db)):
     
     if db_booking.is_paid:
         raise HTTPException(status_code=200, detail="Booking already paid")
-    
+
     db_booking.is_paid = True
     db.commit()
     db.refresh(db_booking)
+    # Generate a new idempotency key for the outbound transaction
+    idempotency_key=get_idempotency_key(f"booking contacting the user {db_booking.customer_id}container because of show "+str(db_booking.show_id))
+    payload_dict = {
+    "message": {
+        "header": "Your Booking has been Paid",
+        "body": "Thank you for your payment."
+    }
+    }
+    contact_user_container(db_booking.customer_id,idempotency_key,payload_dict)
+
     # Generate a QR code for the booking
     key=get_idempotency_key('booking validating the booking'+str(db_booking.id))
     # Generate a QR code for the booking
-   
-    ###
-    
+
+
     validateURL=f'https://dsssi-backend-booking.greenplant-9a54dc56.germanywestcentral.azurecontainerapps.io/bookings/{db_booking.id}/validate/{key}'
     QRc=generate_qr_code(validateURL)
     
@@ -165,6 +217,7 @@ def pay_booking(booking_id: int, db: Session = Depends(get_db)):
     
     # Send the PDF file as a response with appropriate headers
     response = FileResponse(pdf_file_path, headers={"Content-Disposition": "attachment; filename=booking_ticket.pdf"})
+
     
     return response
 
@@ -192,6 +245,18 @@ def validate_booking(booking_id: int,transaction_id: str, db: Session = Depends(
     db_booking.is_used = True
     db.commit()
     db.refresh(db_booking)
+
+    #inform user seats are blocked and he has to pay
+    idempotency_key=get_idempotency_key(f"booking contacting the user {db_booking.customer_id}container because of show "+str(db_booking.show_id))
+    payload_dict = {
+    "message": {
+        "header": "Thank you for your Visit",
+        "body": "We hope you enjoyed the show."
+    }
+    }
+    contact_user_container(db_booking.customer_id,idempotency_key,payload_dict)
+
+
     return booking_to_bookingresponse(db_booking)
 
 #inform all users with a booking for a specific show that the show is cancelled and notifys them that they will get a refund
@@ -215,15 +280,18 @@ def cancel_show(show_id: int,transaction_id: str, db: Session = Depends(get_db))
     for booking in db_booking:
         if booking.is_paid:
             customer_ids.append([booking.customer_id,booking.amount])
-            # Process refund logic here (you can implement this as needed)
-            # Assuming refund processed successfully, update the booking status
             booking.is_paid = False
         customer_ids.append([booking.customer_id,0])
     
     for customer_id in customer_ids:
         idempotency_key=get_idempotency_key(f"booking contacting the user {customer_id[0]}container because of show "+str(show_id))
-        requests.post('https://backend-message-board.greenplant-9a54dc56.germanywestcentral.azurecontainerapps.io/messages/?transaction_id='+idempotency_key, json={'recipient': customer_id[0], 'header': 'Your show has been cancelled.', 'body':'You will get a refund of '+str(customer_id[1])+'€.'})
-    
+        payload_dict = {
+        "message": {
+            "header": "The Show you booked has been cancelled",
+            "body": "We hope you can understant that. You will get a refund of "+str(customer_id[1])+"$."
+        }
+        }
+        contact_user_container(db_booking.customer_id,idempotency_key,payload_dict)
     db.commit()
     return len(customer_ids) +"users affected and notified"
 
@@ -279,3 +347,4 @@ def get_booking_for_show_and_user(show_id: int, user_id: int, db: Session = Depe
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+    

@@ -7,3 +7,4 @@ SQLAlchemy==2.0.20
 uvicorn==0.23.2
 pyodbc==5.0.1
 requests==2.31.0
+jsonschema==4.0.1
