@@ -5,6 +5,7 @@ from fastapi.responses import FileResponse
 from database import booking_to_bookingresponse,Booking, SessionLocal, BookingCreate, BookingResponse
 from helper import generate_qr_code, generate_ticket_pdf
 from typing import List
+from sqlalchemy import desc
 import requests
 from fastapi import FastAPI, HTTPException, Depends
 import threading
@@ -109,8 +110,8 @@ def create_booking(request: BookingCreate, db: Session = Depends(get_db)):
         idempotency_key=get_idempotency_key(f"booking contacting the user {db_booking.customer_id}container because of show "+str(db_booking.show_id))
         payload_dict = {
         "message": {
-            "header": "Your Booking has been Recieved",
-            "body": "Thank you for your Order please pay now."
+            "header": "Wir haben deine Buchung erhalten",
+            "body": "GIB UNS SOFORT DEIN GELD."
         }
         }
         contact_user_container(db_booking.customer_id,idempotency_key,payload_dict)
@@ -142,8 +143,8 @@ def cancel_booking(booking_id: int, transaction_id: str,db: Session = Depends(ge
         idempotency_key=get_idempotency_key(f"booking contacting the user {db_booking.customer_id}container because of show "+str(db_booking.show_id))
         payload_dict = {
         "message": {
-            "header": "Your Booking has been Cancelled",
-            "body": f'we will refund you {db_booking.amount}$.'
+            "header": "Deine Buchung Wurde Abgebrochen",
+            "body": f'Dein Geld bekommst du trotzdem nicht LOL, {db_booking.amount}$ die haben wir schon Versoffen.'
         }
         }
         contact_user_container(db_booking.customer_id,idempotency_key,payload_dict)
@@ -199,8 +200,8 @@ def pay_booking(booking_id: int, db: Session = Depends(get_db)):
     idempotency_key=get_idempotency_key(f"booking contacting the user {db_booking.customer_id}container because of show "+str(db_booking.show_id))
     payload_dict = {
     "message": {
-        "header": "Your Booking has been Paid",
-        "body": "Thank you for your payment."
+        "header": "DU HAST UNS GELD GEGEBEN",
+        "body": "Danke für dein Geld. #GetScammed ( wir sind ein Fake Kino HAHAHA)"
     }
     }
     contact_user_container(db_booking.customer_id,idempotency_key,payload_dict)
@@ -250,8 +251,8 @@ def validate_booking(booking_id: int,transaction_id: str, db: Session = Depends(
     idempotency_key=get_idempotency_key(f"booking contacting the user {db_booking.customer_id}container because of show "+str(db_booking.show_id))
     payload_dict = {
     "message": {
-        "header": "Thank you for your Visit",
-        "body": "We hope you enjoyed the show."
+        "header": "Danke für den Besuch",
+        "body": "Wir hoffen es hat ihnen gefallen."
     }
     }
     contact_user_container(db_booking.customer_id,idempotency_key,payload_dict)
@@ -287,8 +288,8 @@ def cancel_show(show_id: int,transaction_id: str, db: Session = Depends(get_db))
         idempotency_key=get_idempotency_key(f"booking contacting the user {customer_id[0]}container because of show "+str(show_id))
         payload_dict = {
         "message": {
-            "header": "The Show you booked has been cancelled",
-            "body": "We hope you can understant that. You will get a refund of "+str(customer_id[1])+"$."
+            "header": "WICHITG: Die Vorstellung wurde abgesagt",
+            "body": "Wir hoffen du hast Verständnis dass auch wir manchmal Probleme haben, wir haben den Folgenden Betrag Rückerstattet: "+str(customer_id[1])+"$."
         }
         }
         contact_user_container(db_booking.customer_id,idempotency_key,payload_dict)
@@ -336,12 +337,17 @@ def get_bookings_for_show(show_id: int, db: Session = Depends(get_db)):
 #GET Booking ID per User Per show
 @app.get("/bookings/show/{show_id}/user/{user_id}/", response_model=List[BookingResponse])
 def get_booking_for_show_and_user(show_id: int, user_id: int, db: Session = Depends(get_db)):
-    db_bookings = db.query(Booking).filter(Booking.show_id == show_id).filter(Booking.customer_id == user_id).latest()
+    db_booking = (
+        db.query(Booking)
+        .filter(Booking.show_id == show_id, Booking.customer_id == user_id)  # You can use a single .filter with commas
+        .order_by(desc(Booking.id))  # Order by 'id' descending
+        .first()  # Get only the first result (latest booking)
+    )
     
-    if db_bookings is None:
+    if db_booking is None:
         raise HTTPException(status_code=404, detail="Booking not found")
     
-    return [booking_to_bookingresponse(db_booking) for db_booking in db_bookings]
+    return db_booking
 
 
 
