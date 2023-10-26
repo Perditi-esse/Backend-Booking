@@ -335,19 +335,22 @@ def get_bookings_for_show(show_id: int, db: Session = Depends(get_db)):
     return [booking_to_bookingresponse(db_booking) for db_booking in db_bookings]
 
 #GET Booking ID per User Per show
-@app.get("/bookings/show/{show_id}/user/{user_id}/", response_model=List[BookingResponse])
+@app.get("/bookings/show/{show_id}/user/{user_id}/")
 def get_booking_for_show_and_user(show_id: int, user_id: int, db: Session = Depends(get_db)):
+    #get all bookings for a show
     db_booking = (
         db.query(Booking)
         .filter(Booking.show_id == show_id, Booking.customer_id == user_id)  # You can use a single .filter with commas
         .order_by(desc(Booking.id))  # Order by 'id' descending
         .first()  # Get only the first result (latest booking)
     )
-    
     if db_booking is None:
         raise HTTPException(status_code=404, detail="Booking not found")
+    #filter the bookings for the user
     
-    return db_booking
+    #return the first booking
+    
+    return db_booking.id
 
 
 
