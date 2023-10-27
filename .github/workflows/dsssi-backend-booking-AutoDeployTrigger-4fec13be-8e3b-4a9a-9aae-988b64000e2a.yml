@@ -11,6 +11,8 @@ on:
    
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
   build-and-deploy:
     runs-on: ubuntu-latest
     permissions: 
